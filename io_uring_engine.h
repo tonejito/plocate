@@ -7,10 +7,11 @@
 #include <string_view>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <linux/stat.h>
+#include <sys/uio.h>
 
-struct io_uring_sqe;
 #ifndef WITHOUT_URING
+struct io_uring_sqe;
+#include <linux/stat.h>
 #include <liburing.h>
 #endif
 
@@ -71,10 +72,12 @@ private:
 				off_t offset;
 				iovec iov;
 			} read;
+#ifndef WITHOUT_URING
 			struct {
 				char *pathname;
 				struct statx *buf;
 			} stat;
+#endif
 		};
 	};
 

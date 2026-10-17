@@ -13,9 +13,7 @@
 
 #include <algorithm>
 #include <assert.h>
-#ifdef HAS_ENDIAN_H
-#include <endian.h>
-#endif
+#include "endian.h"
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,11 +22,11 @@ template<class Docid>
 void write_le(Docid val, void *out)
 {
 	if constexpr (sizeof(Docid) == 8) {
-		val = htole64(val);
+		val = host_to_little_endian(val);
 	} else if constexpr (sizeof(Docid) == 4) {
-		val = htole32(val);
+		val = host_to_little_endian(val);
 	} else if constexpr (sizeof(Docid) == 2) {
-		val = htole16(val);
+		val = host_to_little_endian(val);
 	} else if constexpr (sizeof(Docid) == 1) {
 		// No change.
 	} else {

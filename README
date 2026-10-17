@@ -10,14 +10,24 @@ you will need a C++17 compiler and a development package for Zstd
 (https://facebook.github.io/zstd/). liburing (https://github.com/axboe/liburing)
 and a kernel supporting io_uring (Linux 5.1 or newer) is optional,
 but strongly recommended for best performance, especially if you
-do not have an SSD. Installation is run as:
+do not have an SSD. Build and install with:
 
-  meson setup obj
-  cd obj
-  ninja
+  make
   sudo addgroup --system plocate
-  sudo ninja install
+  sudo make install
   sudo systemctl enable --now plocate-updatedb.timer
+
+The Makefile is a thin wrapper around Meson and Ninja. On macOS, use the
+Homebrew prefix and skip the Linux-only group and service setup:
+
+  make PREFIX="$(brew --prefix)"
+  make install
+  updatedb -U "$HOME"
+  plocate Downloads
+
+On macOS, the database defaults to `var/plocate/plocate.db` under the install
+prefix (for example, `/opt/homebrew/var/plocate/plocate.db`). Both programs use
+this default, so no `-o` or `-d` option is needed.
 
 To build the database for the first time after install, you can do
 

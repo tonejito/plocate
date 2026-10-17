@@ -5,9 +5,7 @@
 
 #include <algorithm>
 #include <assert.h>
-#ifdef HAS_ENDIAN_H
-#include <endian.h>
-#endif
+#include "endian.h"
 #include <fcntl.h>
 #include <string.h>
 #include <string_view>
@@ -325,7 +323,7 @@ void EncodingCorpus::flush_block()
 			uint32_t trgm;
 			memcpy(&trgm, ptr, sizeof(trgm));
 			++ptr;
-			trgm = le32toh(trgm);
+			trgm = little_endian_to_host(trgm);
 			add_docid(trgm & 0xffffff, docid);
 			if (trgm <= 0xffffff) {
 				// Terminating zero byte, so we're done with this filename.
@@ -481,6 +479,14 @@ DatabaseBuilder::DatabaseBuilder(const char *outfile, gid_t owner, int block_siz
 	: outfile(outfile), block_size(block_size)
 {
 	umask(0027);
+	mode_t db_mode = 0640;
+#ifdef __APPLE__
+	// Per-user databases have no visibility group and must not be readable by
+	// other members of the macOS default "staff" group.
+	if (!check_visibility) {
+		db_mode = 0600;
+	}
+#endif
 
 	string path = outfile;
 	path.resize(path.find_last_of('/') + 1);
@@ -489,7 +495,7 @@ DatabaseBuilder::DatabaseBuilder(const char *outfile, gid_t owner, int block_siz
 	}
 	int fd = -1;
 #ifdef O_TMPFILE
-	fd = open(path.c_str(), O_WRONLY | O_TMPFILE, 0640);
+	fd = open(path.c_str(), O_WRONLY | O_TMPFILE, db_mode);
 	if (fd == -1 && errno != EOPNOTSUPP && errno != EISDIR) {
 		perror(path.c_str());
 		exit(1);
@@ -502,7 +508,7 @@ DatabaseBuilder::DatabaseBuilder(const char *outfile, gid_t owner, int block_siz
 			perror(temp_filename.c_str());
 			exit(1);
 		}
-		if (fchmod(fd, 0640) == -1) {
+		if (fchmod(fd, db_mode) == -1) {
 			perror("fchmod");
 			exit(1);
 		}

@@ -1,8 +1,6 @@
 #include <algorithm>
 #include <assert.h>
-#ifdef HAS_ENDIAN_H
-#include <endian.h>
-#endif
+#include "endian.h"
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
@@ -66,11 +64,11 @@ Docid read_le(const void *in)
 	Docid val;
 	memcpy(&val, in, sizeof(val));
 	if constexpr (sizeof(Docid) == 8) {
-		return le64toh(val);
+		return little_endian_to_host(val);
 	} else if constexpr (sizeof(Docid) == 4) {
-		return le32toh(val);
+		return little_endian_to_host(val);
 	} else if constexpr (sizeof(Docid) == 2) {
-		return le16toh(val);
+		return little_endian_to_host(val);
 	} else if constexpr (sizeof(Docid) == 1) {
 		return val;
 	} else {

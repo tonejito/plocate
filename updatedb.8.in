@@ -194,7 +194,8 @@ updatedb, so they can be shared.
 
 .TP
 \fB@dbfile@\fR
-The database updated by default.
+The database updated by default. On macOS, it is installed under the prefix's
+\fBvar/plocate/plocate.db\fR directory.
 
 .SH SECURITY
 Databases built with

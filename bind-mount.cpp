@@ -44,6 +44,20 @@ any later version.
 
 using namespace std;
 
+#ifdef __APPLE__
+
+bool is_bind_mount(const char *)
+{
+	// Linux mountinfo is unavailable, so bind-mount pruning cannot be applied.
+	return false;
+}
+
+void bind_mount_init()
+{
+}
+
+#else
+
 /* mountinfo handling */
 
 /* A single mountinfo entry */
@@ -374,3 +388,5 @@ void bind_mount_init()
 	});
 	poll_thread.detach();
 }
+
+#endif  // __APPLE__

@@ -21,6 +21,7 @@ any later version.
  */
 
 #include "conf.h"
+#include "default_db.h"
 
 #include "lib.h"
 
@@ -37,9 +38,20 @@ any later version.
 
 using namespace std;
 
+#ifdef __APPLE__
+static char *program_name;
+#define program_invocation_name program_name
+#endif
+
 /* true if locate(1) should check whether files are visible before reporting
    them */
+#ifdef __APPLE__
+// macOS installations commonly build a per-user database without a dedicated
+// setgid group. Visibility checks remain available through updatedb.conf.
+bool conf_check_visibility = false;
+#else
 bool conf_check_visibility = true;
+#endif
 
 /* Filesystems to skip, converted to uppercase and sorted by name */
 vector<string> conf_prunefs;
@@ -329,6 +341,12 @@ eof:
 static void
 help(void)
 {
+	string default_db = default_database_path();
+#ifdef __APPLE__
+	const char *visibility_default = "no";
+#else
+	const char *visibility_default = "yes";
+#endif
 	printf("Usage: updatedb [OPTION]...\n"
 	         "Update a plocate database.\n"
 	         "\n"
@@ -353,14 +371,14 @@ help(void)
 	         "      --prunepaths PATHS         paths to omit from database\n"
 	         "  -l, --require-visibility FLAG  check visibility before "
 	         "reporting files\n"
-	         "                                 (default \"yes\")\n"
+	         "                                 (default \"%s\")\n"
 	         "  -v, --verbose                  print paths of files as they "
 	         "are found\n"
 	         "  -V, --version                  print version information\n"
 	         "\n"
 	         "The configuration defaults to values read from `%s',\n"
 	         "or from a file specified with --config-file.\n",
-	       DBFILE, UPDATEDB_CONF, UPDATEDB_CONF);
+	       default_db.c_str(), UPDATEDB_CONF, visibility_default, UPDATEDB_CONF);
 	printf("\n"
 	       "Report bugs to %s.\n",
 	       PACKAGE_BUGREPORT);
@@ -628,7 +646,7 @@ options_done:
 		conf_scan_root = root;
 	}
 	if (conf_output.empty())
-		conf_output = DBFILE;
+		conf_output = default_database_path();
 	if (conf_output[0] != '/')
 		conf_output = prepend_cwd(conf_output);
 }
@@ -673,6 +691,9 @@ gen_conf_block(void)
    Exit on error or --help, --version. */
 void conf_prepare(int argc, char *argv[])
 {
+#ifdef __APPLE__
+	program_name = argv[0];
+#endif
 	parse_initial_arguments(argc, argv);
 	parse_updatedb_conf();
 	parse_arguments(argc, argv);

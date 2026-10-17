@@ -1,5 +1,6 @@
 #include "access_rx_cache.h"
 #include "complete_pread.h"
+#include "default_db.h"
 #include "db.h"
 #include "dprintf.h"
 #include "io_uring_engine.h"
@@ -95,7 +96,11 @@ Corpus::Corpus(int fd, const char *filename_for_errors, IOUringEngine *engine)
 			perror("lseek");
 			exit(1);
 		}
+#ifdef POSIX_FADV_DONTNEED
 		posix_fadvise(fd, 0, len, POSIX_FADV_DONTNEED);
+#elif defined(F_NOCACHE)
+		fcntl(fd, F_NOCACHE, 1);
+#endif
 	}
 
 	complete_pread(fd, &hdr, sizeof(hdr), /*offset=*/0, filename_for_errors);
@@ -482,8 +487,8 @@ uint64_t do_search_file(const vector<Needle> &needles, const std::string &filena
 	}
 
 	// Drop privileges.
-	if (setresgid(getgid(), getgid(), getgid()) != 0) {
-		perror("setresgid");
+	if (setgid(getgid()) != 0) {
+		perror("setgid");
 		exit(EXIT_FAILURE);
 	}
 
@@ -814,13 +819,14 @@ void parse_dbpaths(const char *ptr, vector<string> *output)
 
 void usage()
 {
+	string default_db = default_database_path();
 	printf(
 		"Usage: plocate [OPTION]... PATTERN...\n"
 		"\n"
 		"  -b, --basename         search only the file name portion of path names\n"
 		"  -c, --count            print number of matches instead of the matches\n"
 		"  -d, --database DBPATH  search for files in DBPATH\n"
-		"                         (default is " DBFILE ")\n"
+		"                         (default is %s)\n"
 		"  -i, --ignore-case      search case-insensitively\n"
 		"  -l, --limit LIMIT      stop after LIMIT matches\n"
 		"  -0, --null             delimit matches by NUL instead of newline\n"
@@ -829,7 +835,8 @@ void usage()
 		"      --regex            interpret patterns as extended regexps (slow)\n"
 		"  -w, --wholename        search the entire path name (default; see -b)\n"
 		"      --help             print this help\n"
-		"      --version          print version information\n");
+		"      --version          print version information\n",
+		default_db.c_str());
 }
 
 void version()
@@ -951,8 +958,8 @@ int main(int argc, char **argv)
 		// from making plocate slow for everyone else.
 		// --ignore-visibility is obvious; if we allowed to keep sgid with
 		// that flag on, it would subvert the entire security model.
-		if (setresgid(getgid(), getgid(), getgid()) != 0) {
-			perror("setresgid");
+		if (setgid(getgid()) != 0) {
+			perror("setgid");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -1001,7 +1008,7 @@ int main(int argc, char **argv)
 	if (dbpaths.empty()) {
 		// No -d given, so use our default. Note that this happens
 		// even if LOCATE_PATH exists, to match mlocate behavior.
-		dbpaths.push_back(DBFILE);
+		dbpaths.push_back(default_database_path());
 	}
 
 	const char *locate_path = getenv("LOCATE_PATH");
